@@ -30,28 +30,38 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
-    Timer(const Duration(seconds: 2), () {
-      setState(() {
-        _startFade = true;
-      });
-      _controller.forward();
+    // Start timer and handle navigation
+    Timer(const Duration(seconds: 2), () async {
+      setState(() => _startFade = true);
+      await _controller.forward();
 
-      _controller.addStatusListener((status) async {
-        if (status == AnimationStatus.completed) {
-          final User? user = FirebaseAuth.instance.currentUser;
-          Widget targetScreen = user != null ? const HomeScreen() : const LoginScreen();
+      final User? user = FirebaseAuth.instance.currentUser;
 
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 800),
-            ),
-          );
-        }
-      });
+      if (!mounted) return;
+
+      if (user != null) {
+        // User logged in → navigate to HomeScreen
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      } else {
+        // User not logged in → navigate to LoginScreen
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
     });
   }
 

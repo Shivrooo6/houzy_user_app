@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:houzy/repository/screens/stripeservice.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class Checkout extends StatefulWidget {
   final DateTime selectedDate;
@@ -41,13 +44,12 @@ class _CheckoutUIState extends State<Checkout> {
   final cityController = TextEditingController();
   final landmarkController = TextEditingController();
 
+  String _selectedLabel = 'Home';
+
   @override
   void initState() {
     super.initState();
-
-    // ✅ Initialize Stripe publishable key
-    Stripe.publishableKey = 'pk_test_51NqqEUSFQ0a1pnIOTAPpjx2C4mkmFSjaadsL9lD5mffA3p3rmSUbLHwKUVjZT9l5Yns2JQKUxmmnOKycQIValENm00QK1eDgLp';
-
+    Stripe.publishableKey = 'your_stripe_publishable_key_here'; // Replace this!
     _loadSavedAddress();
   }
 
@@ -60,71 +62,60 @@ class _CheckoutUIState extends State<Checkout> {
     landmarkController.text = prefs.getString('landmark') ?? '';
   }
 
-  // Future<void> _saveAddressToPrefs() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('houseNo', houseNoController.text.trim());
-  //   await prefs.setString('street', streetController.text.trim());
-  //   await prefs.setString('area', areaController.text.trim());
-  //   await prefs.setString('city', cityController.text.trim());
-  //   await prefs.setString('landmark', landmarkController.text.trim());
-  // }
+  Future<void> _saveAddressToBackend() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw "User not logged in";
 
-  // // Future<void> _startPayment() async {
-  // //   if (houseNoController.text.trim().isEmpty ||
-  // //       streetController.text.trim().isEmpty ||
-  // //       areaController.text.trim().isEmpty ||
-  // //       cityController.text.trim().isEmpty) {
-  // //     ScaffoldMessenger.of(context).showSnackBar(
-  // //       const SnackBar(content: Text('❌ Please fill all address fields')),
-  // //     );
-  // //     return;
-  // //   }
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
 
-  // //   await _saveAddressToPrefs();
-  // //   setState(() => isLoading = true);
+    final placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+    final place = placemarks.isNotEmpty ? placemarks.first : null;
 
-  // //   try {
-  // //     final user = FirebaseAuth.instance.currentUser;
-  // //     if (user == null) throw 'User not logged in';
+    final body = {
+      "userId": user.uid,
+      "label": _selectedLabel,
+      "street": "${houseNoController.text.trim()}, "
+                "${streetController.text.trim()}, "
+                "${areaController.text.trim()}",
+      "city": (place?.locality?.isNotEmpty ?? false)
+          ? place!.locality
+          : cityController.text.trim(),
+      "state": place?.administrativeArea ?? "",
+      "country": place?.country ?? "UAE",
+      "pincode": place?.postalCode ?? "",
+      "lat": position.latitude,
+      "lng": position.longitude,
+    };
 
-  // //     // ✅ Save data to Firestore
-  // //     await FirebaseFirestore.instance.collection('checkouts').add({
-  // //       'userId': user.uid,
-  // //       'email': user.email,
-  // //       'service': widget.serviceTitle,
-  // //       'size': widget.sizeLabel,
-  // //       'date': widget.selectedDate,
-  // //       'timeSlot': widget.selectedTimeSlot,
-  // //       'price': widget.price,
-  // //       'currency': 'AED',
-  // //       'paymentStatus': 'Pending',
-  // //       'createdAt': Timestamp.now(),
-  // //       'hours': widget.selectedHours,
-  // //       'professionals': widget.selectedProfessionals,
-  // //       'planMonths': widget.durationInMonths,
-  // //       'address': {
-  // //         'houseNo': houseNoController.text.trim(),
-  // //         'street': streetController.text.trim(),
-  // //         'area': areaController.text.trim(),
-  // //         'city': cityController.text.trim(),
-  // //         'landmark': landmarkController.text.trim(),
-  // //       }
-  // //     });
+    debugPrint("Saving address: ${jsonEncode(body)}");
 
-  // //     ScaffoldMessenger.of(context).showSnackBar(
-  // //       const SnackBar(content: Text('✅ Booking saved. Proceeding to payment...')),
-  // //     );
-  // //   } catch (e) {
-  // //     ScaffoldMessenger.of(context).showSnackBar(
-  // //       SnackBar(content: Text('❌ Error: $e')),
-  // //     );
-  // //   } finally {
-  // //     setState(() => isLoading = false);
-  // //   }
-  // // }
+    final response = await http.post(
+      Uri.parse("https://houzy-ozer.vercel.app/api/v1/mobile/user/location"),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    debugPrint("Backend response: ${response.statusCode} - ${response.body}");
+
+    if (response.statusCode != 200) {
+      String message = "Failed to save address";
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['message'] != null) {
+          message = decoded['message'];
+        }
+      } catch (_) {}
+      throw message;
+    }
+  }
 
   @override
-  Widget build(BuildContext c) => Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: const Text('Booking Checkout'),
           backgroundColor: Colors.orange,
@@ -146,9 +137,29 @@ class _CheckoutUIState extends State<Checkout> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Icon(Icons.payment),
                 label: Text(isLoading ? 'Processing...' : 'Continue to Pay'),
-                onPressed: (){
-                  Stripeservice.instance.makePayment();
-                }
+                onPressed: () async {
+                  if (houseNoController.text.trim().isEmpty ||
+                      streetController.text.trim().isEmpty ||
+                      areaController.text.trim().isEmpty ||
+                      cityController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Please fill all address fields")),
+                    );
+                    return;
+                  }
+
+                  setState(() => isLoading = true);
+                  try {
+                    await _saveAddressToBackend();
+                    Stripeservice.instance.makePayment(); // continue payment
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Error: $e')),
+                    );
+                  } finally {
+                    setState(() => isLoading = false);
+                  }
+                },
               ),
             ],
           ),
@@ -164,11 +175,26 @@ class _CheckoutUIState extends State<Checkout> {
         _customTextField(areaController, 'Area / Locality'),
         _customTextField(cityController, 'City'),
         _customTextField(landmarkController, 'Landmark (Optional)', required: false),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _selectedLabel,
+          items: ['Home', 'Work', 'Other'].map((label) {
+            return DropdownMenuItem(value: label, child: Text(label));
+          }).toList(),
+          onChanged: (val) {
+            if (val != null) setState(() => _selectedLabel = val);
+          },
+          decoration: const InputDecoration(
+            labelText: 'Save Address As',
+            border: OutlineInputBorder(),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _customTextField(TextEditingController controller, String label, {bool required = true}) {
+  Widget _customTextField(TextEditingController controller, String label,
+      {bool required = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -184,7 +210,8 @@ class _CheckoutUIState extends State<Checkout> {
   }
 
   Widget _buildBookingSummary() {
-    final priceStr = NumberFormat.currency(locale: 'en_AE', symbol: 'AED ').format(widget.price);
+    final priceStr =
+        NumberFormat.currency(locale: 'en_AE', symbol: 'AED ').format(widget.price);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -192,12 +219,15 @@ class _CheckoutUIState extends State<Checkout> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: const [BoxShadow(color: Colors.black12, offset: Offset(0, 2), blurRadius: 4)],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, offset: Offset(0, 2), blurRadius: 4)
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Booking Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Booking Summary',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           _summaryRow('Service', widget.serviceTitle),
           _summaryRow('Size', widget.sizeLabel),
@@ -205,7 +235,8 @@ class _CheckoutUIState extends State<Checkout> {
             _summaryRow('Professionals per visit', '${widget.selectedProfessionals}'),
           if (widget.selectedHours != null)
             _summaryRow('Hours per visit', '${widget.selectedHours}'),
-          _summaryRow('Start Date', DateFormat('MMM d, yyyy').format(widget.selectedDate)),
+          _summaryRow('Start Date',
+              DateFormat('MMM d, yyyy').format(widget.selectedDate)),
           _summaryRow('Time', widget.selectedTimeSlot),
           if (widget.durationInMonths != null)
             _summaryRow('Plan Duration', '${widget.durationInMonths} Months'),
@@ -214,7 +245,7 @@ class _CheckoutUIState extends State<Checkout> {
           const SizedBox(height: 4),
           Text(
             widget.durationInMonths != null
-                ? 'usd ${widget.price ~/ widget.durationInMonths!} per month'
+                ? 'AED ${widget.price ~/ widget.durationInMonths!} per month'
                 : 'One-time payment',
             style: const TextStyle(color: Colors.grey),
           ),
@@ -229,10 +260,11 @@ class _CheckoutUIState extends State<Checkout> {
       child: Row(
         children: [
           Expanded(child: Text(title)),
-          Text(val, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(val,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );
   }
 }
-

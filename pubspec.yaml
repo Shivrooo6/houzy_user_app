@@ -33,6 +33,7 @@ dependencies:
   cloud_functions: ^5.5.2
   dio: ^5.8.0+1
   flutter_dotenv: ^5.1.0
+  google_place: ^0.4.7
 
 
 
@@ -62,6 +63,7 @@ flutter:
     - assets/images/user.png
     - assets/images/serviceimage1.png
     - assets/images/customerimage.png
+    - .env
 
   fonts:
     - family: bold

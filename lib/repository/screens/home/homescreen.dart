@@ -49,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _initAnimations();
-    _getCurrentLocation();
     _pageController = PageController();
     _startAutoScroll();
   }
@@ -315,10 +314,7 @@ Future<void> showServiceBottomCard(
         children: [
           Image.asset('assets/images/houzylogoimage.png', height: 40),
           const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () {},
-          ),
+      
           GestureDetector(
             onTap: () {
               showModalBottomSheet(
@@ -387,110 +383,131 @@ Future<void> showServiceBottomCard(
       ),
     );
   }
+Widget _buildServiceSection(BuildContext context) {
+  final List<Map<String, dynamic>> services = [
+    {
+      "label": "Cleaning Demo",
+      "icon": Icons.auto_fix_high,
+      "highlight": true,
+      "badge": "Most Popular",
+      "description": "Check demo first for cleaning service.",
+      "rating": "4.9",
+      "reviews": "(28k)",
+      'route': () => DemoService(),
+    },
+    {
+      "label": "1 Month Cleaning",
+      "icon": Icons.flash_on,
+      "highlight": true,
+      "badge": "Fastest",
+      "description": "Check 1 hour cleaning service.",
+      "rating": "4.8",
+      "reviews": "(15k)",
+      'route': () => Onemonth(),
+    },
+    {
+      "label": "3 Month Cleaning",
+      "icon": Icons.cleaning_services,
+      "description": "Check 1.5 hour cleaning service.",
+      "rating": "4.7",
+      "reviews": "(10k)",
+      'route': () => ThreeMonthPlan(),
+    },
+    {
+      "label": "6 Month Cleaning",
+      "icon": Icons.local_laundry_service,
+      "description": "Check 2 hour cleaning service.",
+      "rating": "4.6",
+      "reviews": "(8k)",
+      'route': () => SixMonthPlan(),
+    },
+    {
+      "label": "12 Month Cleaning",
+      "icon": Icons.sanitizer,
+      "description": "Check 2.5 hour cleaning service.",
+      "rating": "4.5",
+      "reviews": "(6k)",
+      'route': () => TwelveMonth(),
+    },
+  ];
 
-  Widget _buildServiceSection(BuildContext context) {
-    final List<Map<String, dynamic>> services = [
-      {
-        "label": "Cleaning Demo",
-        "icon": Icons.auto_fix_high,
-        "highlight": true,
-        "badge": "Most Popular",
-        "description":
-            "Check demo first for cleaning service. Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos provident.",
-        "rating": "4.9",
-        "reviews": "(28k)",
-        'route': () =>  DemoService(),
-      },
+  return Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: services.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.3,
+      ),
+      itemBuilder: (context, index) {
+        final item = services[index];
 
-      {
-        "label": "1 Month Cleaning",
-        "icon": Icons.flash_on,
-        "highlight": true,
-        "badge": "Fastest",
-        "description":
-            "Check 1 hour cleaning service. Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos provident.",
-        "rating": "4.8",
-        "reviews": "(15k)",
-         'route': () =>  Onemonth(),
-      },
-      {
-        "label": "3 Month Cleaning",
-        "icon": Icons.cleaning_services,
-        "description":
-            "Check 1.5 hour cleaning service. Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos provident.",
-        "rating": "4.7",
-        "reviews": "(10k)",
-            'route': () =>  ThreeMonthPlan(),
-      },
-      {
-        "label": "6 Month Cleaning",
-        "icon": Icons.local_laundry_service,
-        "description":
-            "Check 2 hour cleaning service. Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos provident.",
-        "rating": "4.6",
-        "reviews": "(8k)",
-        'route': () =>  SixMonthPlan(),
-      },
-      {
-        "label": "12 Month Cleaning",
-        "icon": Icons.sanitizer,
-        "description":
-            "Check 2.5 hour cleaning service. Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos provident.",
-        "rating": "4.5",
-        "reviews": "(6k)",
-        'route': () =>  TwelveMonth(),
-      },
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        itemCount: services.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.3,
-        ),
-        itemBuilder: (context, index) {
-          final item = services[index];
-          return GestureDetector(
-            onTap: () {
-              // Directly show the bottom card with frosted glass
-              showServiceBottomCard(context, item);
-            },
-            child: Card(
-              elevation: 4,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item['icon'], size: 40, color: Colors.orange.shade700),
-                    const SizedBox(height: 10),
-                    Text(
-                      item['label'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                      textAlign: TextAlign.center,
+        return TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: 1),
+          duration: Duration(milliseconds: 500 + index * 100),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 30 * (1 - value)),
+                child: GestureDetector(
+                  onTap: () {
+                    showServiceBottomCard(context, item);
+                  },
+                  child: Card(
+                    elevation: 4,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.6, end: 1.0),
+                            duration: const Duration(milliseconds: 700),
+                            curve: Curves.elasticOut,
+                            builder: (context, scale, iconChild) {
+                              return Transform.scale(
+                                scale: scale,
+                                child: Icon(
+                                  item['icon'],
+                                  size: 40,
+                                  color: Colors.orange.shade700,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            item['label'],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+            );
+          },
+        );
+      },
+    ),
+  );
+}
+
 
   Widget _buildTestimonialCarousel() {
     return Column(

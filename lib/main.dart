@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // <-- ADD THIS
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Environment loader
 import 'package:houzy/repository/screens/bottomnav/bottomnavscreen.dart';
 import 'firebase_options.dart';
 import 'package:houzy/repository/splash/splashscreen.dart';
@@ -10,21 +10,34 @@ import 'package:houzy/repository/screens/login/loginscreen.dart';
 import 'package:houzy/repository/screens/account/accountscreen.dart';
 
 void main() async {
+  // ✅ Ensure Flutter bindings before async code
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Load .env and Stripe key setup
   await _setup();
+
+  // ✅ Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ Run app
   runApp(const MyApp());
 }
 
 Future<void> _setup() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Load env variables
+  // ✅ Load environment variables from `.env` file
   await dotenv.load(fileName: ".env");
 
-  // Set Stripe key from env
+  // ✅ Assign Stripe publishable key
   Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+
+  // ✅ Apply Stripe settings
+  try {
+    await Stripe.instance.applySettings();
+  } catch (e) {
+    print("Error initializing Stripe: $e");
+  }
 }
 
 class MyApp extends StatelessWidget {

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:houzy/repository/screens/checkout/checkout.dart';
 import 'package:intl/intl.dart';
@@ -42,7 +41,8 @@ class _OnemonthState extends State<Onemonth> {
           selectedDate: selectedDate ?? DateTime.now(),
           selectedTimeSlot: selectedTime ?? '10:00 AM - 12:00 PM',
           sizeLabel: '1 BHK',
-          price: total,serviceTitle: "6 Month Cleaning Plan",
+          price: total,
+          serviceTitle: "1 Month Cleaning Plan",
         ),
       ),
     );
@@ -114,9 +114,179 @@ class _OnemonthState extends State<Onemonth> {
     );
   }
 
+  Widget _buildHeaderCard() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTopHeader(),
+          const SizedBox(height: 10),
+          const Text("1 Month Cleaning Plan",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          const Text("Enjoy regular cleaning service for a full month."),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _buildBadge("15 AED per hour", Icons.monetization_on),
+              const SizedBox(width: 8),
+              _buildBadge("Top rated cleaners", Icons.star, bgColor: Colors.orange.shade50),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset('assets/images/serviceimage1.png',
+                height: 180, width: double.infinity, fit: BoxFit.cover),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadge(String text, IconData icon, {Color? bgColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor ?? Colors.red.shade50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.orange),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionSelector(String title, int count, int selected, Function(int) onTap) {
+    IconData icon = title.toLowerCase().contains("hour")
+        ? Icons.timer_outlined
+        : Icons.groups_outlined;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: List.generate(count, (i) {
+                final index = i + 1;
+                return ChoiceChip(
+                  label: Text("$index"),
+                  avatar: Icon(icon),
+                  selected: selected == index,
+                  onSelected: (_) => onTap(index),
+                  selectedColor: Colors.orange.shade100,
+                );
+              }),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncludedSection() {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("What's Included",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 10),
+            ...includedTasks.map((task) => Row(
+                  children: [
+                    const Icon(Icons.check, color: Colors.green, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(task)),
+                  ],
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionsInput() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Any specific instructions?", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            TextField(
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: "Add any special instructions for the cleaning professional...",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (val) => setState(() => specialInstructions = val),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatePicker() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("When would you like to book?",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            CalendarDatePicker(
+              initialDate: DateTime.now(),
+              firstDate: DateTime.now(),
+              lastDate: DateTime.now().add(const Duration(days: 60)),
+              onDateChanged: (date) => setState(() => selectedDate = date),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeSlots() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Wrap(
+        spacing: 8,
+        children: timeSlots.map((slot) {
+          return ChoiceChip(
+            label: Text(slot),
+            selected: selectedTime == slot,
+            onSelected: (_) => setState(() => selectedTime = slot),
+            selectedColor: Colors.orange.shade100,
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildBookingSummary() {
     int rate = 15;
     int total = selectedHours * selectedProfessionals * rate;
+
     return Card(
       margin: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(
@@ -131,7 +301,7 @@ class _OnemonthState extends State<Onemonth> {
             const Text("Booking Summary",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 10),
-            const Text("Service: One-Time Trial Cleaning"),
+            const Text("Service: 1 Month Cleaning Plan"),
             Text("Hours: $selectedHours"),
             Text("Professionals: $selectedProfessionals"),
             Text("Rate per hour: AED $rate"),
@@ -143,8 +313,8 @@ class _OnemonthState extends State<Onemonth> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               onPressed: () => _handlePayment(total),
-              child: Text("Pay AED $total for Demo"),
-            )
+              child: Text("Pay AED $total for 1 Month"),
+            ),
           ],
         ),
       ),
@@ -157,9 +327,18 @@ class _OnemonthState extends State<Onemonth> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildTopHeader(),
+            _buildHeaderCard(),
+            _buildIncludedSection(),
+            _buildOptionSelector("How many hours do you need your professional to stay?", 6, selectedHours,
+                (val) => setState(() => selectedHours = val)),
+            _buildOptionSelector("How many professionals do you need?", 4, selectedProfessionals,
+                (val) => setState(() => selectedProfessionals = val)),
+            _buildInstructionsInput(),
+            _buildDatePicker(),
+            const SizedBox(height: 8),
+            _buildTimeSlots(),
+            const SizedBox(height: 16),
             _buildBookingSummary(),
-            // You can include other sections if needed like _buildInstructionsInput, _buildDatePicker, etc.
           ],
         ),
       ),
