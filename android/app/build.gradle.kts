@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.example.houzy"
     compileSdk = 35 // ✅ Set to Android 14 (API 34)
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973" // ✅ Updated NDK version
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
