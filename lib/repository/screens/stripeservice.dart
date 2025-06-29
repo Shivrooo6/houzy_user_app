@@ -5,9 +5,19 @@ class Stripeservice {
   Stripeservice._();
   static final Stripeservice instance = Stripeservice._();
 
-  Future<void> makePayment() async {
+  Future<void> makePayment({
+    required int amount,
+    required int months,
+    required String title,
+    required String email,
+  }) async {
     try {
-      String clientSecret = await _createPaymentIntent(10, "usd");
+      String clientSecret = await _createPaymentIntent(
+        amount: amount,
+        months: months,
+        title: title,
+        email: email,
+      );
 
       if (clientSecret.isEmpty) {
         print("Client secret is empty");
@@ -18,8 +28,8 @@ class Stripeservice {
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Houzy',
-          billingDetails: const BillingDetails(
-            email: 'karam123@gmail.com',
+          billingDetails: BillingDetails(
+            email: email,
           ),
         ),
       );
@@ -30,17 +40,22 @@ class Stripeservice {
     }
   }
 
-  Future<String> _createPaymentIntent(int amount, String currency) async {
+  Future<String> _createPaymentIntent({
+    required int amount,
+    required int months,
+    required String title,
+    required String email,
+  }) async {
     try {
       final Dio dio = Dio();
 
       Map<String, dynamic> body = {
         "plan": {
           "price": _calculateAmount(amount),
-          "months": 1,
-          "title": "example"
+          "months": months,
+          "title": title,
         },
-        "email": "karam123@gmail.com"
+        "email": email,
       };
 
       final response = await dio.post(
@@ -80,6 +95,6 @@ class Stripeservice {
   }
 
   String _calculateAmount(int amount) {
-    return (amount ).toString(); // Convert dollars to cents
+    return amount.toString(); // amount should already be in AED
   }
 }

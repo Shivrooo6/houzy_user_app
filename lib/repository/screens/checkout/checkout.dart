@@ -1,13 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:houzy/repository/screens/stripeservice.dart';
+import 'package:houzy/paymentscreen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 
 class Checkout extends StatefulWidget {
   final DateTime selectedDate;
@@ -49,7 +43,6 @@ class _CheckoutUIState extends State<Checkout> {
   @override
   void initState() {
     super.initState();
-    Stripe.publishableKey = 'your_stripe_publishable_key_here'; // Replace this!
     _loadSavedAddress();
   }
 
@@ -62,109 +55,59 @@ class _CheckoutUIState extends State<Checkout> {
     landmarkController.text = prefs.getString('landmark') ?? '';
   }
 
-  Future<void> _saveAddressToBackend() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw "User not logged in";
-
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    final placemarks = await placemarkFromCoordinates(
-      position.latitude,
-      position.longitude,
-    );
-    final place = placemarks.isNotEmpty ? placemarks.first : null;
-
-    final body = {
-      "userId": user.uid,
-      "label": _selectedLabel,
-      "street": "${houseNoController.text.trim()}, "
-                "${streetController.text.trim()}, "
-                "${areaController.text.trim()}",
-      "city": (place?.locality?.isNotEmpty ?? false)
-          ? place!.locality
-          : cityController.text.trim(),
-      "state": place?.administrativeArea ?? "",
-      "country": place?.country ?? "UAE",
-      "pincode": place?.postalCode ?? "",
-      "lat": position.latitude,
-      "lng": position.longitude,
-    };
-
-    debugPrint("Saving address: ${jsonEncode(body)}");
-
-    final response = await http.post(
-      Uri.parse("https://houzy-ozer.vercel.app/api/v1/mobile/user/location"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-
-    debugPrint("Backend response: ${response.statusCode} - ${response.body}");
-
-    if (response.statusCode != 200) {
-      String message = "Failed to save address";
-      try {
-        final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded['message'] != null) {
-          message = decoded['message'];
-        }
-      } catch (_) {}
-      throw message;
-    }
-  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Booking Checkout'),
-          backgroundColor: Colors.orange,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _buildBookingSummary(),
-              const SizedBox(height: 20),
-              _buildStructuredAddressForm(),
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.orange,
-                ),
-                icon: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Icon(Icons.payment),
-                label: Text(isLoading ? 'Processing...' : 'Continue to Pay'),
-                onPressed: () async {
-                  if (houseNoController.text.trim().isEmpty ||
-                      streetController.text.trim().isEmpty ||
-                      areaController.text.trim().isEmpty ||
-                      cityController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Please fill all address fields")),
-                    );
-                    return;
-                  }
-
-                  setState(() => isLoading = true);
-                  try {
-                    await _saveAddressToBackend();
-                    Stripeservice.instance.makePayment(); // continue payment
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('❌ Error: $e')),
-                    );
-                  } finally {
-                    setState(() => isLoading = false);
-                  }
-                },
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Booking Checkout'),
+        backgroundColor: Colors.orange,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildBookingSummary(),
+            const SizedBox(height: 20),
+            _buildStructuredAddressForm(),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: Colors.orange,
               ),
-            ],
-          ),
+              icon: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Icon(Icons.payment),
+              label: Text(isLoading ? 'Processing...' : 'Continue to Pay'),
+              onPressed: () async {
+  Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => PaymentScreen(
+      serviceTitle: widget.serviceTitle,
+      sizeLabel: widget.sizeLabel,
+      selectedProfessionals: widget.selectedProfessionals,
+      selectedHours: widget.selectedHours,
+      selectedDate: widget.selectedDate,
+      selectedTimeSlot: widget.selectedTimeSlot,
+      durationInMonths: widget.durationInMonths,
+      price: widget.price,
+      fullAddress: "${houseNoController.text.trim()}, "
+          "${streetController.text.trim()}, "
+          "${areaController.text.trim()}",
+      city: cityController.text.trim(),
+      label: _selectedLabel,
+    ),
+  ),
+);
+              }
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _buildStructuredAddressForm() {
     return Column(
@@ -178,12 +121,10 @@ class _CheckoutUIState extends State<Checkout> {
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _selectedLabel,
-          items: ['Home', 'Work', 'Other'].map((label) {
-            return DropdownMenuItem(value: label, child: Text(label));
-          }).toList(),
-          onChanged: (val) {
-            if (val != null) setState(() => _selectedLabel = val);
-          },
+          items: ['Home', 'Work', 'Other']
+              .map((label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (val) => setState(() => _selectedLabel = val ?? 'Home'),
           decoration: const InputDecoration(
             labelText: 'Save Address As',
             border: OutlineInputBorder(),

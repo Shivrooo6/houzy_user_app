@@ -326,7 +326,7 @@ class _TwelveMonthPlanState extends State<TwelveMonth> {
           children: [
             _buildHeaderCard(),
             _buildIncludedSection(),
-            _buildOptionSelector("Hours per visit", 6, selectedHours, (val) {
+            _buildOptionSelector("Hours per visit", 4, selectedHours, (val) {
               setState(() => selectedHours = val);
             }),
             _buildOptionSelector("Professionals per visit", 4, selectedProfessionals, (val) {

@@ -5,6 +5,7 @@ import 'package:houzy/repository/screens/bottomnav/bottomnavscreen.dart';
 import 'package:houzy/repository/widgets/uihelper.dart';
 import 'package:houzy/screens/userauth/firebaseauthservices.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage("Google Sign-In failed");
         return;
       }
+
+      // ✅ Save email locally for later (e.g., for backend fetch)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userEmail', user.email ?? '');
 
       final userData = {
         "name": user.displayName ?? "No Name",

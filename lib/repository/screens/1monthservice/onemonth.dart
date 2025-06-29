@@ -34,12 +34,19 @@ class _OnemonthState extends State<Onemonth> {
   ];
 
   Future<void> _handlePayment(int total) async {
+    if (selectedDate == null || selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select date and time before continuing')),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => Checkout(
-          selectedDate: selectedDate ?? DateTime.now(),
-          selectedTimeSlot: selectedTime ?? '10:00 AM - 12:00 PM',
+          selectedDate: selectedDate!,
+          selectedTimeSlot: selectedTime!,
           sizeLabel: '1 BHK',
           price: total,
           serviceTitle: "1 Month Cleaning Plan",
@@ -114,6 +121,23 @@ class _OnemonthState extends State<Onemonth> {
     );
   }
 
+  Widget _buildBadge(String text, IconData icon, {Color? bgColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor ?? Colors.red.shade50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.orange),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderCard() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -140,23 +164,6 @@ class _OnemonthState extends State<Onemonth> {
             child: Image.asset('assets/images/serviceimage1.png',
                 height: 180, width: double.infinity, fit: BoxFit.cover),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBadge(String text, IconData icon, {Color? bgColor}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor ?? Colors.red.shade50,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.orange),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -232,7 +239,7 @@ class _OnemonthState extends State<Onemonth> {
             TextField(
               maxLines: 3,
               decoration: const InputDecoration(
-                hintText: "Add any special instructions for the cleaning professional...",
+                hintText: "Add any special instructions...",
                 border: OutlineInputBorder(),
               ),
               onChanged: (val) => setState(() => specialInstructions = val),
@@ -251,8 +258,7 @@ class _OnemonthState extends State<Onemonth> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("When would you like to book?",
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text("When would you like to book?", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             CalendarDatePicker(
               initialDate: DateTime.now(),
@@ -286,6 +292,7 @@ class _OnemonthState extends State<Onemonth> {
   Widget _buildBookingSummary() {
     int rate = 15;
     int total = selectedHours * selectedProfessionals * rate;
+    bool canProceed = selectedDate != null && selectedTime != null;
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -298,21 +305,20 @@ class _OnemonthState extends State<Onemonth> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Booking Summary",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("Booking Summary", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 10),
             const Text("Service: 1 Month Cleaning Plan"),
             Text("Hours: $selectedHours"),
             Text("Professionals: $selectedProfessionals"),
             Text("Rate per hour: AED $rate"),
             Text("Starting Date: ${selectedDate != null ? DateFormat('dd/MM/yyyy').format(selectedDate!) : 'Select a date'}"),
+            Text("Time Slot: ${selectedTime ?? 'Select time'}"),
             const SizedBox(height: 10),
-            Text("Total: AED $total",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            Text("Total: AED $total", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
             const SizedBox(height: 10),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: () => _handlePayment(total),
+              style: ElevatedButton.styleFrom(backgroundColor: canProceed ? Colors.orange : Colors.grey),
+              onPressed: canProceed ? () => _handlePayment(total) : null,
               child: Text("Pay AED $total for 1 Month"),
             ),
           ],

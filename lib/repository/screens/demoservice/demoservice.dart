@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:houzy/repository/screens/checkout/checkout.dart';
@@ -6,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 void main() {
-  Stripe.publishableKey = 'your-publishable-key-here'; // Add your Stripe publishable key here
+  Stripe.publishableKey = 'your-publishable-key-here'; // replace with your real key
   runApp(const HouzyApp());
 }
 
@@ -53,20 +52,27 @@ class _DemoServiceState extends State<DemoService> {
     '4:00 PM', '5:00 PM'
   ];
 
-Future<void> _handlePayment(int total) async {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => Checkout(
-        selectedDate: DateTime.now(), // Replace with actual date if needed
-        selectedTimeSlot: '10:00 AM - 12:00 PM', // Replace with actual time slot
-        sizeLabel: '1 BHK', // Replace with actual size label
-        price: total,serviceTitle: "6 Month Cleaning Plan",
-      ),
-    ),
-  );
-}
+  Future<void> _handlePayment(int total) async {
+    if (selectedDate == null || selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select date and time before continuing')),
+      );
+      return;
+    }
 
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Checkout(
+          selectedDate: selectedDate!,
+          selectedTimeSlot: selectedTime!,
+          sizeLabel: '1 BHK',
+          price: total,
+          serviceTitle: "One-Time Trial Cleaning",
+        ),
+      ),
+    );
+  }
 
   Widget _buildTopHeader() {
     final user = FirebaseAuth.instance.currentUser;
@@ -105,7 +111,6 @@ Future<void> _handlePayment(int total) async {
                         title: const Text('Profile'),
                         onTap: () {
                           Navigator.pop(context);
-                          Navigator.pushNamed(context, '/account');
                         },
                       ),
                       ListTile(
@@ -114,7 +119,7 @@ Future<void> _handlePayment(int total) async {
                         onTap: () async {
                           Navigator.pop(context);
                           await FirebaseAuth.instance.signOut();
-                          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                          Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
                         },
                       ),
                       const SizedBox(height: 16),
@@ -183,8 +188,69 @@ Future<void> _handlePayment(int total) async {
     );
   }
 
-  Widget _buildOptionSelector(
-      String title, int count, int selected, Function(int) onTap) {
+  Widget _buildBookingSummary() {
+    int rate = 15;
+    int total = selectedHours * selectedProfessionals * rate;
+
+    bool canProceed = selectedDate != null && selectedTime != null;
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Colors.orange, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Booking Summary", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 10),
+            const Text("Service: One-Time Trial Cleaning"),
+            Text("Hours: $selectedHours"),
+            Text("Professionals: $selectedProfessionals"),
+            Text("Rate per hour: AED $rate"),
+            Text("Date: ${selectedDate != null ? DateFormat('dd/MM/yyyy').format(selectedDate!) : 'Select date'}"),
+            Text("Time: ${selectedTime ?? 'Select time'}"),
+            const SizedBox(height: 10),
+            Text("Total: AED $total", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: canProceed ? Colors.orange : Colors.grey),
+              onPressed: canProceed ? () => _handlePayment(total) : null,
+              child: Text("Pay AED $total for Demo"),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncludedSection() {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("What's Included", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 10),
+            ...includedTasks.map((task) => Row(
+              children: [
+                const Icon(Icons.check, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(task))
+              ],
+            ))
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionSelector(String title, int count, int selected, Function(int) onTap) {
     IconData icon = title.toLowerCase().contains("hour")
         ? Icons.timer_outlined
         : Icons.groups_outlined;
@@ -217,30 +283,6 @@ Future<void> _handlePayment(int total) async {
     );
   }
 
-  Widget _buildIncludedSection() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("What's Included",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 10),
-            ...includedTasks.map((task) => Row(
-                  children: [
-                    const Icon(Icons.check, color: Colors.green, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(task))
-                  ],
-                ))
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildInstructionsInput() {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -254,7 +296,7 @@ Future<void> _handlePayment(int total) async {
             TextField(
               maxLines: 3,
               decoration: const InputDecoration(
-                hintText: "Add any special instructions for the cleaning professional...",
+                hintText: "Add any special instructions...",
                 border: OutlineInputBorder(),
               ),
               onChanged: (val) => setState(() => specialInstructions = val),
@@ -301,43 +343,6 @@ Future<void> _handlePayment(int total) async {
     );
   }
 
-  Widget _buildBookingSummary() {
-    int rate = 15;
-    int total = selectedHours * selectedProfessionals * rate;
-    return Card(
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Colors.orange, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Booking Summary",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 10),
-            const Text("Service: One-Time Trial Cleaning"),
-            Text("Hours: $selectedHours"),
-            Text("Professionals: $selectedProfessionals"),
-            Text("Rate per hour: AED $rate"),
-            Text("Starting Date: ${selectedDate != null ? DateFormat('dd/MM/yyyy').format(selectedDate!) : 'Select a date'}"),
-            const SizedBox(height: 10),
-            Text("Total: AED $total",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: () => _handlePayment(total),
-              child: Text("Pay AED $total for Demo"),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -346,7 +351,7 @@ Future<void> _handlePayment(int total) async {
           children: [
             _buildHeaderCard(),
             _buildIncludedSection(),
-            _buildOptionSelector("How many hours do you need your professional to stay?", 4, selectedHours,
+            _buildOptionSelector("How many hours do you need?", 4, selectedHours,
                 (val) => setState(() => selectedHours = val)),
             _buildOptionSelector("How many professionals do you need?", 4, selectedProfessionals,
                 (val) => setState(() => selectedProfessionals = val)),
