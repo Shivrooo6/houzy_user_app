@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:houzy/repository/screens/checkout/checkout.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-void main() {
-  Stripe.publishableKey = 'your-publishable-key-here'; // replace with your real key
-  runApp(const HouzyApp());
-}
 
 class HouzyApp extends StatelessWidget {
   const HouzyApp({super.key});
