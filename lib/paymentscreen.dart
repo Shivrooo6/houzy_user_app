@@ -14,7 +14,6 @@ class PaymentScreen extends StatefulWidget {
   final String selectedTimeSlot;
   final int? durationInMonths;
   final int price;
-
   final String fullAddress;
   final String city;
   final String label;
@@ -43,8 +42,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final priceStr =
-        NumberFormat.currency(locale: 'en_AE', symbol: 'AED ').format(widget.price);
+    final priceStr = NumberFormat.currency(locale: 'en_AE', symbol: 'AED ').format(widget.price);
 
     return Scaffold(
       appBar: AppBar(
@@ -93,19 +91,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       try {
                         final prefs = await SharedPreferences.getInstance();
                         final email = prefs.getString('userEmail') ?? '';
-                        print("📧 Retrieved email: $email");
-
                         if (email.isEmpty) throw "User email not found";
 
-                        // Optional: Call your backend for user ID (if needed)
+                        // Fetch user ID from backend
                         final userDetailsResponse = await http.get(
-                          Uri.parse(
-                              "https://houzy-ozer.vercel.app/api/v1/mobile/user/getDetailsByEmail?email=$email"),
+                          Uri.parse("https://houzy-ozer.vercel.app/api/v1/mobile/user/getDetailsByEmail?email=$email"),
                           headers: {'Content-Type': 'application/json'},
                         );
-
-                        final data = userDetailsResponse.body;
-                        print("📥 User details response: ${userDetailsResponse.statusCode} - $data");
 
                         if (userDetailsResponse.statusCode != 200) {
                           throw "Failed to fetch user details: ${userDetailsResponse.body}";
@@ -113,8 +105,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                         final decoded = jsonDecode(userDetailsResponse.body);
                         final userId = decoded?['data']?['user']?['id'];
-                        debugPrint("✅ Got userId from backend: $userId");
-                        print("✅ User email: $email");
+                        if (userId == null) throw "User ID not found";
 
                         // Make Stripe payment
                         await Stripeservice.instance.makePayment(
@@ -128,15 +119,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           const SnackBar(content: Text("✅ Payment successful")),
                         );
 
-                        // Optional: Navigate to success screen
+                        // ✅ Post booking summary
+                        await _createSubscription(userId);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("✅ Booking saved successfully")),
+                        );
+                                        print("📦 Initiating payment for ${widget.serviceTitle} - Amount: ${widget.price} AED");
+
+                        // Optional: Navigate to success screen or home
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("❌ Payment failed: $e")),
+                          SnackBar(content: Text("❌ Error: $e")),
                         );
                       } finally {
                         setState(() => isLoading = false);
                       }
                     },
+                    
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
                 backgroundColor: Colors.orange,
@@ -149,11 +149,53 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     )
                   : const Icon(Icons.payment),
               label: Text(isLoading ? 'Processing...' : 'Pay Now'),
+
             ),
+            
           ],
+          
         ),
       ),
+      
     );
+    
+  }
+
+
+  /// 🔹 POST booking summary to backend
+  Future<void> _createSubscription(String userId) async {
+    final url = Uri.parse('https://houzy-ozer.vercel.app/api/v1/mobile/subscription');
+    final body = {
+      "userId": userId,
+      "planTitle": widget.serviceTitle,
+      "price": widget.price,
+      "months": widget.durationInMonths ?? 1,
+      "fullAddress": widget.fullAddress,
+      "city": widget.city,
+      "label": widget.label,
+      "selectedProfessionals": widget.selectedProfessionals,
+      "selectedHours": widget.selectedHours,
+      "date": widget.selectedDate.toIso8601String(),
+      "timeSlot": widget.selectedTimeSlot,
+      "sizeLabel": widget.sizeLabel,
+    };
+
+    print("📦 Posting booking summary: ${jsonEncode(body)}");
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+      print("✅ Booking summary posted successfully to $url");
+
+    print("📥 Backend response: ${response.statusCode} - ${response.body}");
+
+    if (response.statusCode != 200) {
+      throw "Failed to save booking: ${response.body}";
+    }
+  }
+
   }
 
   Widget _sectionTitle(String title) => Padding(
@@ -171,4 +213,4 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ],
         ),
       );
-}
+

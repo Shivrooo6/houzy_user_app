@@ -67,6 +67,7 @@ class Stripeservice {
           },
         ),
       );
+      print("Payment intent response: ${response.statusCode} - ${response.data}");
 
       final data = response.data;
 
@@ -95,6 +96,7 @@ class Stripeservice {
   }
 
   String _calculateAmount(int amount) {
-    return amount.toString(); // amount should already be in AED
-  }
+  return (amount * 100).toString();
+}
+
 }
